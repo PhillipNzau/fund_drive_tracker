@@ -476,7 +476,7 @@
             </svg>
             Event Details
           </button>
-          <button class="nav-btn" onclick="showTab('upload', this)">
+          <!-- <button class="nav-btn" onclick="showTab('upload', this)">
             <svg
               class="nav-icon"
               viewBox="0 0 24 24"
@@ -489,7 +489,7 @@
               <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
             Upload Excel
-          </button>
+          </button> -->
 
           <div style="margin-top: 2rem">
             <div
@@ -672,6 +672,8 @@
     </div>
 
     <script>
+      const SHEET_API_URL =
+        "https://script.google.com/macros/s/AKfycbzMhlFyA1q2g8OIf9lEce3Ki5jTI1gSM9N4bYp6V1GmFckxpA_AFUwcNlNiEPT-VuR1fg/exec";
       var allContributions = [];
       var filterStatusVal = "all";
       var currentConfig = {};
@@ -903,17 +905,42 @@
 
       /* ── Boot: restore from localStorage or use defaults ── */
       (function init() {
-        var saved = loadFromStorage();
-        if (saved) {
-          loadConfig(saved.cfg);
-          loadContributions(saved.contribs, currentTarget);
-          showStorageBadge(true);
-        } else {
-          loadConfig(defaultConfig);
-          loadContributions(defaultContribs, defaultConfig["Target Amount (Ksh)"]);
-          showStorageBadge(false);
-        }
+        loadFromGoogleSheets();
+
+        // 🔁 auto refresh every 10 seconds (live updates)
+        setInterval(loadFromGoogleSheets, 10000);
       })();
+
+      async function loadFromGoogleSheets() {
+        try {
+          const res = await fetch(SHEET_API_URL + "?t=" + Date.now()); // prevent caching
+          const data = await res.json();
+
+          if (!data || !data.config || !data.contributions) {
+            throw new Error("Invalid data from sheet");
+          }
+
+          const target = loadConfig(data.config);
+          loadContributions(data.contributions, target);
+
+          // ✅ also save locally as backup
+          saveToStorage(data.config, data.contributions);
+          showStorageBadge(true);
+        } catch (err) {
+          console.warn("Google Sheets load failed, falling back to local", err);
+
+          const saved = loadFromStorage();
+          if (saved) {
+            loadConfig(saved.cfg);
+            loadContributions(saved.contribs, currentTarget);
+            showStorageBadge(true);
+          } else {
+            loadConfig(defaultConfig);
+            loadContributions(defaultContribs, defaultConfig["Target Amount (Ksh)"]);
+            showStorageBadge(false);
+          }
+        }
+      }
     </script>
   </body>
 </html>
