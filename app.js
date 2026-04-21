@@ -1,5 +1,6 @@
 const SHEET_API_URL =
-  "https://script.google.com/macros/s/AKfycbzMhlFyA1q2g8OIf9lEce3Ki5jTI1gSM9N4bYp6V1GmFckxpA_AFUwcNlNiEPT-VuR1fg/exec";
+  "https://script.google.com/macros/s/AKfycbwCjkSpY-jXcwpApbpYZj01mYbRCTG0bep0n5pEOMb5BztUOLgdNrIR2WUURJ5s_36SsA/exec";
+
 var allContributions = [];
 var filterStatusVal = "all";
 var currentConfig = {};
@@ -202,8 +203,7 @@ function loadContributions(rows, target) {
 
 function renderTable(id, rows) {
   if (!rows.length) {
-    document.getElementById(id).innerHTML =
-      '<div class="loading-msg">No contributions found</div>';
+    document.getElementById(id).innerHTML = '<div class="loading-msg">No contributions found</div>';
     return;
   }
   var html =
@@ -295,7 +295,10 @@ function handleFile(e) {
       setSourceBadge("Showing data from uploaded spreadsheet.", "source-badge-live");
       showTab("dashboard", document.querySelector(".nav-btn"));
     } catch (err) {
-      setSourceBadge("Spreadsheet import failed. Please check the format and try again.", "source-badge-fallback");
+      setSourceBadge(
+        "Spreadsheet import failed. Please check the format and try again.",
+        "source-badge-fallback",
+      );
       alert("Error reading Excel file. Please check the format and try again.");
     }
   };
@@ -356,14 +359,20 @@ async function loadFromGoogleSheets() {
       showStorageBadge(true);
       setSyncStatus("Using saved local data");
       updateLastUpdated(new Date());
-      setSourceBadge("Live data is unavailable. Showing saved local data instead.", "source-badge-fallback");
+      setSourceBadge(
+        "Live data is unavailable. Showing saved local data instead.",
+        "source-badge-fallback",
+      );
     } else {
       loadConfig(defaultConfig);
       loadContributions(defaultContribs, defaultConfig["Target Amount (Ksh)"]);
       showStorageBadge(false);
       setSyncStatus("Using bundled sample data");
       updateLastUpdated(null);
-      setSourceBadge("Live data is unavailable. Showing bundled sample data.", "source-badge-fallback");
+      setSourceBadge(
+        "Live data is unavailable. Showing bundled sample data.",
+        "source-badge-fallback",
+      );
     }
   }
 }
