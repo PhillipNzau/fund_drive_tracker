@@ -162,6 +162,18 @@
         color: var(--gold2);
         font-size: 15px;
       }
+      .sync-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .sync-state {
+        color: var(--gold3);
+      }
       .stats-row {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -425,7 +437,7 @@
       <div class="header">
         <div class="header-sub">Fund Drive Overview</div>
         <div class="header-title">FUND DRIVE</div>
-        <div class="header-name" id="campaign-name">Loading campaign…</div>
+        <div class="header-name" id="campaign-name">Loading campaign...</div>
       </div>
 
       <div class="main">
@@ -476,6 +488,7 @@
             </svg>
             Event Details
           </button>
+          <!-- Upload stays hidden in the public viewer. -->
           <!-- <button class="nav-btn" onclick="showTab('upload', this)">
             <svg
               class="nav-icon"
@@ -567,23 +580,27 @@
                 <div class="progress-bar-fill" id="progress-fill" style="width: 0%"></div>
               </div>
               <div class="progress-numbers">
-                <span>Target: <strong id="target-val">Ksh —</strong></span>
-                <span>Raised: <strong id="raised-val">Ksh —</strong></span>
+                <span>Target: <strong id="target-val">Ksh -</strong></span>
+                <span>Raised: <strong id="raised-val">Ksh -</strong></span>
                 <span id="pct-val" style="color: var(--green-glow); font-weight: 700">0%</span>
+              </div>
+              <div class="sync-meta">
+                <span class="sync-state" id="sync-status">Waiting for live update...</span>
+                <span id="last-updated">Last updated: --</span>
               </div>
             </div>
             <div class="stats-row">
               <div class="stat-card">
                 <div class="stat-label">Total Raised</div>
-                <div class="stat-val" id="stat-raised">—</div>
+                <div class="stat-val" id="stat-raised">-</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">Contributors</div>
-                <div class="stat-val" id="stat-count">—</div>
+                <div class="stat-val" id="stat-count">-</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">Confirmed</div>
-                <div class="stat-val" id="stat-confirmed">—</div>
+                <div class="stat-val" id="stat-confirmed">-</div>
               </div>
             </div>
             <div class="section-title">Recent Contributions</div>
@@ -598,7 +615,7 @@
             <input
               class="name-search"
               type="text"
-              placeholder="Search by name…"
+              placeholder="Search by name..."
               id="name-search"
               oninput="filterTable()"
             />
@@ -616,7 +633,7 @@
           <div id="tab-event" style="display: none">
             <div class="section-title">Upcoming Event</div>
             <div class="event-card">
-              <div class="event-name" id="ev-name">—</div>
+              <div class="event-name" id="ev-name">-</div>
               <div class="event-detail" id="ev-details">
                 Upload an Excel file to see event details.
               </div>
@@ -627,7 +644,7 @@
           <div id="tab-upload" style="display: none">
             <div class="section-title">Upload Excel File</div>
             <div class="upload-area" onclick="document.getElementById('file-input').click()">
-              <div class="upload-icon">📊</div>
+              <div class="upload-icon">XLSX</div>
               <div class="upload-text">
                 <strong>Click to upload your Excel file</strong>
                 Supports .xlsx files with a "Contributions" sheet and "Config" sheet
@@ -642,11 +659,11 @@
             />
             <div class="format-card">
               <div class="format-title">Expected Excel Format</div>
-              <strong style="color: var(--text-light)">Sheet: "Config"</strong> — two columns: A
+              <strong style="color: var(--text-light)">Sheet: "Config"</strong> - two columns: A
               (key), B (value)<br />
-              Rows: Campaign Name · Target Amount (Ksh) · M-Pesa Number · Account Name · Event Name
-              · Event Venue · Event Date · Event Time<br /><br />
-              <strong style="color: var(--text-light)">Sheet: "Contributions"</strong> — columns:<br />
+              Rows: Campaign Name | Target Amount (Ksh) | M-Pesa Number | Account Name | Event Name
+              | Event Venue | Event Date | Event Time<br /><br />
+              <strong style="color: var(--text-light)">Sheet: "Contributions"</strong> - columns:<br />
               Name &nbsp;|&nbsp; Amount (Ksh) &nbsp;|&nbsp; Reference Number &nbsp;|&nbsp; Date
               &nbsp;|&nbsp; Status
             </div>
@@ -659,11 +676,11 @@
         <div class="mpesa-pill">
           <span class="mpesa-logo">M-PESA</span>
           <span class="mpesa-num" id="mpesa-num">0723 876 744</span>
-          <span style="color: var(--text-muted)">•</span>
+          <span style="color: var(--text-muted)">&bull;</span>
           <span style="color: var(--text-muted)" id="mpesa-name">Anthony Nzau</span>
         </div>
         <div style="color: var(--text-muted); font-size: 12px; font-style: italic">
-          Thank you for your kindness 🙏
+          Thank you for your kindness.
         </div>
         <div style="font-size: 12px">
           <span class="status-dot"></span><span style="color: var(--text-muted)">Live tracker</span>
@@ -749,6 +766,23 @@
         return "Ksh " + Number(n).toLocaleString();
       }
 
+      function setSyncStatus(message) {
+        var el = document.getElementById("sync-status");
+        if (el) el.textContent = message;
+      }
+
+      function updateLastUpdated(date) {
+        var el = document.getElementById("last-updated");
+        if (!el) return;
+        if (!date) {
+          el.textContent = "Last updated: --";
+          return;
+        }
+        el.textContent =
+          "Last updated: " +
+          date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      }
+
       function showStorageBadge(show) {
         var el = document.getElementById("storage-badge");
         if (el) el.style.display = show ? "inline-flex" : "none";
@@ -758,7 +792,7 @@
         currentConfig = cfg;
         document.getElementById("campaign-name").textContent = cfg["Campaign Name"] || "";
         document.getElementById("campaign-label").textContent =
-          (cfg["Campaign Name"] || "") + " — Send Off";
+          (cfg["Campaign Name"] || "") + " - Send Off";
         document.getElementById("mpesa-num").textContent = cfg["M-Pesa Number"] || "";
         document.getElementById("mpesa-name").textContent = cfg["Account Name"] || "";
         currentTarget = Number(cfg["Target Amount (Ksh)"]) || 1200000;
@@ -809,16 +843,16 @@
           html +=
             "<tr>" +
             "<td>" +
-            (r.Name || "—") +
+            (r.Name || "-") +
             "</td>" +
             '<td class="amount-cell">' +
             fmt(r["Amount (Ksh)"] || 0) +
             "</td>" +
             '<td style="color:var(--text-muted);font-size:12px">' +
-            (r["Reference Number"] || "—") +
+            (r["Reference Number"] || "-") +
             "</td>" +
             '<td style="color:var(--text-muted)">' +
-            (r.Date || "—") +
+            (r.Date || "-") +
             "</td>" +
             '<td><span class="badge ' +
             badge +
@@ -905,9 +939,10 @@
 
       /* ── Boot: restore from localStorage or use defaults ── */
       (function init() {
+        setSyncStatus("Refreshing live data...");
         loadFromGoogleSheets();
 
-        // 🔁 auto refresh every 10 seconds (live updates)
+        // Auto refresh every 10 seconds for live updates.
         setInterval(loadFromGoogleSheets, 10000);
       })();
 
@@ -923,9 +958,11 @@
           const target = loadConfig(data.config);
           loadContributions(data.contributions, target);
 
-          // ✅ also save locally as backup
+          // Also save locally as backup.
           saveToStorage(data.config, data.contributions);
           showStorageBadge(true);
+          setSyncStatus("Live data connected");
+          updateLastUpdated(new Date());
         } catch (err) {
           console.warn("Google Sheets load failed, falling back to local", err);
 
@@ -934,10 +971,14 @@
             loadConfig(saved.cfg);
             loadContributions(saved.contribs, currentTarget);
             showStorageBadge(true);
+            setSyncStatus("Using saved local data");
+            updateLastUpdated(new Date());
           } else {
             loadConfig(defaultConfig);
             loadContributions(defaultContribs, defaultConfig["Target Amount (Ksh)"]);
             showStorageBadge(false);
+            setSyncStatus("Using bundled sample data");
+            updateLastUpdated(null);
           }
         }
       }
