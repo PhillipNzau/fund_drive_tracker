@@ -371,6 +371,32 @@
         color: var(--text-muted);
         font-size: 13px;
       }
+      .source-badge {
+        display: none;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.5;
+        margin-bottom: 8px;
+      }
+      .source-badge-live {
+        display: block;
+        background: rgba(74, 222, 128, 0.1);
+        border: 1px solid rgba(74, 222, 128, 0.3);
+        color: #4ade80;
+      }
+      .source-badge-fallback {
+        display: block;
+        background: rgba(251, 191, 36, 0.12);
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        color: #fbbf24;
+      }
+      .source-badge-muted {
+        display: block;
+        background: rgba(143, 160, 184, 0.12);
+        border: 1px solid rgba(143, 160, 184, 0.25);
+        color: var(--text-light);
+      }
       .tab-buttons {
         display: flex;
         gap: 8px;
@@ -505,6 +531,9 @@
           </button> -->
 
           <div style="margin-top: 2rem">
+            <div id="source-badge" class="source-badge source-badge-muted">
+              Checking live contribution data...
+            </div>
             <div
               id="storage-badge"
               style="
@@ -783,34 +812,96 @@
           date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       }
 
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function cleanText(value) {
+        if (value === undefined || value === null) return "";
+        return String(value).replace(/\s+/g, " ").trim();
+      }
+
+      function normalizeAmount(value) {
+        if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+        var cleaned = cleanText(value).replace(/,/g, "");
+        var parsed = Number(cleaned);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      function normalizeStatus(value) {
+        var normalized = cleanText(value).toLowerCase();
+        return normalized === "confirmed" ? "Confirmed" : "Pending";
+      }
+
+      function normalizeConfig(cfg) {
+        var merged = Object.assign({}, defaultConfig, cfg || {});
+        Object.keys(merged).forEach(function (key) {
+          if (key === "Target Amount (Ksh)") {
+            merged[key] = normalizeAmount(merged[key]) || defaultConfig[key];
+            return;
+          }
+          merged[key] = cleanText(merged[key]);
+        });
+        return merged;
+      }
+
+      function normalizeContribution(row) {
+        var normalized = row || {};
+        return {
+          Name: cleanText(normalized.Name) || "Anonymous",
+          "Amount (Ksh)": normalizeAmount(normalized["Amount (Ksh)"]),
+          "Reference Number": cleanText(normalized["Reference Number"]) || "Not provided",
+          Date: cleanText(normalized.Date) || "Not provided",
+          Status: normalizeStatus(normalized.Status),
+        };
+      }
+
+      function normalizeContributions(rows) {
+        return (rows || []).map(normalizeContribution);
+      }
+
+      function setSourceBadge(message, tone) {
+        var el = document.getElementById("source-badge");
+        if (!el) return;
+        el.className = "source-badge " + (tone || "source-badge-muted");
+        el.textContent = message;
+      }
+
       function showStorageBadge(show) {
         var el = document.getElementById("storage-badge");
         if (el) el.style.display = show ? "inline-flex" : "none";
       }
 
       function loadConfig(cfg) {
+        cfg = normalizeConfig(cfg);
         currentConfig = cfg;
-        document.getElementById("campaign-name").textContent = cfg["Campaign Name"] || "";
+        document.getElementById("campaign-name").textContent = cfg["Campaign Name"] || "Fund Drive";
         document.getElementById("campaign-label").textContent =
-          (cfg["Campaign Name"] || "") + " - Send Off";
-        document.getElementById("mpesa-num").textContent = cfg["M-Pesa Number"] || "";
-        document.getElementById("mpesa-name").textContent = cfg["Account Name"] || "";
+          (cfg["Campaign Name"] || "Fund Drive") + " - Send Off";
+        document.getElementById("mpesa-num").textContent = cfg["M-Pesa Number"] || "Not provided";
+        document.getElementById("mpesa-name").textContent = cfg["Account Name"] || "Not provided";
         currentTarget = Number(cfg["Target Amount (Ksh)"]) || 1200000;
         document.getElementById("target-val").textContent = fmt(currentTarget);
-        document.getElementById("ev-name").textContent = cfg["Event Name"] || "";
+        document.getElementById("ev-name").textContent = cfg["Event Name"] || "Upcoming Event";
         document.getElementById("ev-details").innerHTML =
           '<strong style="color:var(--text-light)">' +
-          (cfg["Event Venue"] || "") +
+          escapeHtml(cfg["Event Venue"] || "Venue not provided") +
           "</strong><br/>" +
           "Service: " +
-          (cfg["Event Time"] || "") +
+          escapeHtml(cfg["Event Time"] || "Time not provided") +
           "<br/>" +
           "Date: " +
-          (cfg["Event Date"] || "");
+          escapeHtml(cfg["Event Date"] || "Date not provided");
         return currentTarget;
       }
 
       function loadContributions(rows, target) {
+        rows = normalizeContributions(rows);
         allContributions = rows;
         var confirmed = rows.filter(function (r) {
           return (r.Status || "").toLowerCase() === "confirmed";
@@ -818,7 +909,7 @@
         var raised = confirmed.reduce(function (s, r) {
           return s + (Number(r["Amount (Ksh)"]) || 0);
         }, 0);
-        var pct = Math.min(100, Math.round((raised / target) * 100));
+        var pct = target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0;
         document.getElementById("progress-fill").style.width = pct + "%";
         document.getElementById("raised-val").textContent = fmt(raised);
         document.getElementById("stat-raised").textContent = fmt(raised);
@@ -843,21 +934,21 @@
           html +=
             "<tr>" +
             "<td>" +
-            (r.Name || "-") +
+            escapeHtml(r.Name || "Anonymous") +
             "</td>" +
             '<td class="amount-cell">' +
             fmt(r["Amount (Ksh)"] || 0) +
             "</td>" +
             '<td style="color:var(--text-muted);font-size:12px">' +
-            (r["Reference Number"] || "-") +
+            escapeHtml(r["Reference Number"] || "Not provided") +
             "</td>" +
             '<td style="color:var(--text-muted)">' +
-            (r.Date || "-") +
+            escapeHtml(r.Date || "Not provided") +
             "</td>" +
             '<td><span class="badge ' +
             badge +
             '">' +
-            (r.Status || "Pending") +
+            escapeHtml(r.Status || "Pending") +
             "</span></td>" +
             "</tr>";
         });
@@ -901,6 +992,7 @@
       function handleFile(e) {
         var file = e.target.files[0];
         if (!file) return;
+        setSourceBadge("Importing data from uploaded spreadsheet...", "source-badge-muted");
         var reader = new FileReader();
         reader.onload = function (ev) {
           try {
@@ -918,10 +1010,12 @@
               contribs = XLSX.utils.sheet_to_json(wb.Sheets["Contributions"]);
             }
             loadContributions(contribs, target);
-            saveToStorage(cfg, contribs);
+            saveToStorage(normalizeConfig(cfg), normalizeContributions(contribs));
             showStorageBadge(true);
+            setSourceBadge("Showing data from uploaded spreadsheet.", "source-badge-live");
             showTab("dashboard", document.querySelector(".nav-btn"));
           } catch (err) {
+            setSourceBadge("Spreadsheet import failed. Please check the format and try again.", "source-badge-fallback");
             alert("Error reading Excel file. Please check the format and try again.");
           }
         };
@@ -934,12 +1028,14 @@
         showStorageBadge(false);
         loadConfig(defaultConfig);
         loadContributions(defaultContribs, defaultConfig["Target Amount (Ksh)"]);
+        setSourceBadge("Showing bundled sample data.", "source-badge-muted");
         document.getElementById("file-input").value = "";
       }
 
       /* ── Boot: restore from localStorage or use defaults ── */
       (function init() {
         setSyncStatus("Refreshing live data...");
+        setSourceBadge("Refreshing live contribution data...", "source-badge-muted");
         loadFromGoogleSheets();
 
         // Auto refresh every 10 seconds for live updates.
@@ -948,21 +1044,28 @@
 
       async function loadFromGoogleSheets() {
         try {
+          setSourceBadge("Refreshing live contribution data...", "source-badge-muted");
           const res = await fetch(SHEET_API_URL + "?t=" + Date.now()); // prevent caching
+          if (!res.ok) {
+            throw new Error("Sheet request failed with status " + res.status);
+          }
           const data = await res.json();
 
           if (!data || !data.config || !data.contributions) {
             throw new Error("Invalid data from sheet");
           }
 
-          const target = loadConfig(data.config);
-          loadContributions(data.contributions, target);
+          const normalizedConfig = normalizeConfig(data.config);
+          const normalizedContribs = normalizeContributions(data.contributions);
+          const target = loadConfig(normalizedConfig);
+          loadContributions(normalizedContribs, target);
 
           // Also save locally as backup.
-          saveToStorage(data.config, data.contributions);
+          saveToStorage(normalizedConfig, normalizedContribs);
           showStorageBadge(true);
           setSyncStatus("Live data connected");
           updateLastUpdated(new Date());
+          setSourceBadge("Live sheet data loaded successfully.", "source-badge-live");
         } catch (err) {
           console.warn("Google Sheets load failed, falling back to local", err);
 
@@ -973,12 +1076,14 @@
             showStorageBadge(true);
             setSyncStatus("Using saved local data");
             updateLastUpdated(new Date());
+            setSourceBadge("Live data is unavailable. Showing saved local data instead.", "source-badge-fallback");
           } else {
             loadConfig(defaultConfig);
             loadContributions(defaultContribs, defaultConfig["Target Amount (Ksh)"]);
             showStorageBadge(false);
             setSyncStatus("Using bundled sample data");
             updateLastUpdated(null);
+            setSourceBadge("Live data is unavailable. Showing bundled sample data.", "source-badge-fallback");
           }
         }
       }
